@@ -43,6 +43,7 @@ namespace gen {
 
     lhef::LHEEvent *lhe;
     bool setAbsoluteInfraredCutOff_;
+    double absoluteInfraredCutOff;
 
     static CLHEP::HepRandomEngine* fRandomEngine;
   };

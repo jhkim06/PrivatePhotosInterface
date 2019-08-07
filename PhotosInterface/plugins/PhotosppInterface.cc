@@ -24,7 +24,8 @@ PhotosppInterface::PhotosppInterface( const edm::ParameterSet& pset)
     fAvoidTauLeptonicDecays(false),
     fIsInitialized(false),
     fPSet(nullptr),
-    setAbsoluteInfraredCutOff_(false)
+    setAbsoluteInfraredCutOff_(false),
+    absoluteInfraredCutOff(0.000001)
 {
   // add ability to keep brem from hadronizer and only modify specific channels 10/27/2014
   bool UseHadronizerQEDBrem=false;
@@ -56,7 +57,10 @@ void PhotosppInterface::init(){
     
     // Physics settings
     if(curSet=="maxWtInterference")                Photospp::Photos::maxWtInterference(fPSet->getParameter<double>(curSet));
-    if(curSet=="setInfraredCutOff")                Photospp::Photos::setInfraredCutOff(fPSet->getParameter<double>(curSet));
+    if(curSet=="setInfraredCutOff"){
+        Photospp::Photos::setInfraredCutOff(fPSet->getParameter<double>(curSet));
+        absoluteInfraredCutOff = fPSet->getParameter<double>(curSet);
+    }
     if(curSet=="setAlphaQED")                      Photospp::Photos::setAlphaQED(fPSet->getParameter<double>(curSet));
     if(curSet=="setInterference")                  Photospp::Photos::setInterference(fPSet->getParameter<bool>(curSet));
     if(curSet=="setDoubleBrem")                    Photospp::Photos::setDoubleBrem(fPSet->getParameter<bool>(curSet));
@@ -185,12 +189,12 @@ HepMC::GenEvent* PhotosppInterface::apply( HepMC::GenEvent* evt){
 
   // check LHE
   if(lhe!=nullptr){ 
-    std::cout << "LHE saved!" << std::endl;
+    //std::cout << "LHE saved!" << std::endl;
     std::vector<int> pdg =lhe->getHEPEUP()->IDUP;
 
     std::vector<HepMC::GenParticle> particles; // to save two leptons 
     for(unsigned int i=0;i<pdg.size();i++){
-        std::cout << "pdg id in lhe info: " << pdg.at(i) << " mass: " << lhe->getHEPEUP()->PUP.at(i)[4] << std::endl;
+        //std::cout << "pdg id in lhe info: " << pdg.at(i) << " mass: " << lhe->getHEPEUP()->PUP.at(i)[4] << std::endl;
         int id = pdg.at(i);
         if( fabs(id) == 13 || fabs(id) == 11 || fabs(id) == 15 ){
             particles.push_back(HepMC::GenParticle(HepMC::FourVector(lhe->getHEPEUP()->PUP.at(i)[0],lhe->getHEPEUP()->PUP.at(i)[1],lhe->getHEPEUP()->PUP.at(i)[2],lhe->getHEPEUP()->PUP.at(i)[3]),lhe->getHEPEUP()->IDUP.at(i)));
@@ -204,13 +208,13 @@ HepMC::GenEvent* PhotosppInterface::apply( HepMC::GenEvent* evt){
     double Pz = particles.at(0).momentum().pz()+particles.at(1).momentum().pz();
     double E =  particles.at(0).momentum().e()+particles.at(1).momentum().e();
     dilep.set_momentum(HepMC::FourVector(Px, Py, Pz, E));
-    std::cout << "id 1: " << particles.at(0).pdg_id() << " id 2: " << particles.at(1).pdg_id() << " mass: " << dilep.momentum().m() << std::endl;
+    //std::cout << "id 1: " << particles.at(0).pdg_id() << " id 2: " << particles.at(1).pdg_id() << " mass: " << dilep.momentum().m() << std::endl;
     // test to reset "setInfraredCutOff"
-    if(setAbsoluteInfraredCutOff_) Photospp::Photos::setInfraredCutOff(0.00001/ dilep.momentum().m()); // 10 KeV/ Mass
+    if(setAbsoluteInfraredCutOff_) Photospp::Photos::setInfraredCutOff(absoluteInfraredCutOff/ dilep.momentum().m()); // cut off energy/ Mass scale of decaying particle
   }
 
   // Print out particle info from HepMC::GenEvent before Photospp::PhotosHepMCEvent::process()
-  std::cout << "NPartBefore: " << NPartBefore << std::endl;
+  //std::cout << "NPartBefore: " << NPartBefore << std::endl;
   //for(HepMC::GenEvent::particle_const_iterator ptl = evt->particles_begin(); ptl != evt->particles_end(); ptl++){
   //   (*ptl)->print();
   //}
@@ -219,7 +223,7 @@ HepMC::GenEvent* PhotosppInterface::apply( HepMC::GenEvent* evt){
 
   Photospp::PhotosHepMCEvent PhotosEvt(evt);
   PhotosEvt.process();
-  std::cout << "NPartBefore after process: " << evt->particles_size() << std::endl;
+  //std::cout << "NPartBefore after process: " << evt->particles_size() << std::endl;
   //Fix the vertices and barcodes based on Julia Yarba's solution from TauolaInterface
   for (HepMC::GenEvent::vertex_const_iterator vtx=evt->vertices_begin(); vtx!=evt->vertices_end(); vtx++ ){
     std::vector<int> BCodes;
